@@ -1,12 +1,1 @@
 streamlit
-easyocr
-pyttsx3
-opencv-python-headless
-Pillow
-numpy
-transformers
-torch
-torchvision
-deep-translator
-requests
-gtts
