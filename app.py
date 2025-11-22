@@ -7,23 +7,22 @@ import os
 
 # Add src directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
-
-# Set Hugging Face Space flag
 os.environ['IS_HUGGINGFACE_SPACE'] = 'true'
 
-# Import and run the app (Streamlit doesn't use if __name__ == "__main__")
+# Import streamlit first
+import streamlit as st
+
+# Now run the actual app
 try:
-    from src.app_pro import *
-    print("🚀 Launching AI Image Analysis Platform - Professional Edition")
-    print("📍 Running on Hugging Face Space")
+    # Import and execute the app_pro module
+    import app_pro
+    print("✅ Successfully loaded AI Image Analysis Platform - Professional Edition")
 except ImportError as e:
-    print(f"❌ Error importing app_pro: {e}")
-    print("Attempting to run standard edition...")
+    print(f"⚠️ Error loading app_pro: {e}")
+    print("Trying standard edition...")
     try:
-        from src.app_enhanced import *
-        print("🚀 Launching AI Image Analysis Platform - Standard Edition")
-    except ImportError as e2:
-        print(f"❌ Error importing app_enhanced: {e2}")
-        print("Please check your installation and dependencies.")
-        import streamlit as st
-        st.error("Failed to load the application. Please check the logs.")
+        import app_enhanced
+        print("✅ Successfully loaded AI Image Analysis Platform - Standard Edition")
+    except Exception as e2:
+        st.error(f"❌ Failed to load application: {e2}")
+        st.info("Please check the deployment logs for more information.")
