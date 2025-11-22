@@ -1,168 +1,195 @@
 import streamlit as st
+import subprocess
 import sys
-import os
+from PIL import Image
+import io
 
-# Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
-
-# Configure Streamlit page
+# Page config
 st.set_page_config(
-    page_title="AI Image Analysis Platform",
-    page_icon="🚀",
+    page_title="AI Image Analysis",
+    page_icon="🖼️",
     layout="wide"
 )
 
-st.title("🚀 AI Image Analysis Platform - Professional Edition")
-st.info("⏳ Loading application components... This may take a moment on first use.")
+def install_package(package):
+    """Install package on-demand"""
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", package])
 
-# Import components lazily (only when needed)
-try:
-    # Don't import heavy libraries at startup
-    # Instead, import them inside functions when actually needed
+# Title
+st.title("🖼️ AI Image Analysis Platform")
+st.markdown("### Professional OCR & Image Captioning Tool")
+
+# Sidebar
+with st.sidebar:
+    st.header("📋 Features")
+    st.markdown("""
+    - **🔍 Text Extraction**: OCR with EasyOCR
+    - **💬 Image Captioning**: AI descriptions with BLIP
+    - **⚡ Fast Loading**: Models load on-demand
+    - **🎯 High Accuracy**: Professional-grade results
+    """)
     
-    # Show a simple interface immediately
-    st.sidebar.header("📁 Upload Image")
-    uploaded_file = st.sidebar.file_uploader(
-        "Choose an image",
-        type=['png', 'jpg', 'jpeg', 'bmp', 'tiff']
-    )
+    st.markdown("---")
+    st.markdown("### 👨‍💻 Developer")
+    st.markdown("**Mohammed Saqhib**")
+    st.markdown("[Email](mailto:msaqhib76@gmail.com) | [LinkedIn](http://www.linkedin.com/in/mohammed-saqhib-87b8b325a) | [GitHub](https://github.com/Mohammed-Saqhib)")
+
+# File uploader
+uploaded_file = st.file_uploader(
+    "📁 Choose an image...",
+    type=['png', 'jpg', 'jpeg', 'bmp', 'gif'],
+    help="Upload an image file to analyze"
+)
+
+if uploaded_file is not None:
+    # Display image
+    col1, col2 = st.columns([1, 1])
     
-    if uploaded_file is not None:
-        # Only import heavy libraries when user uploads a file
-        from PIL import Image
-        import numpy as np
-        
-        # Display image
+    with col1:
+        st.subheader("📸 Uploaded Image")
         image = Image.open(uploaded_file)
-        st.image(image, caption="Uploaded Image", use_container_width=True)
-        
-        # Show available features
-        st.subheader("📋 Available Features")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("""
-            ### 🔍 OCR & Text Extraction
-            - Multi-language support (7 languages)
-            - High accuracy text extraction
-            - Export to TXT, JSON, PDF
-            """)
-            
-            if st.button("🔍 Extract Text", key="ocr"):
-                with st.spinner("Loading OCR engine..."):
-                    try:
-                        import easyocr
-                        st.success("✅ OCR engine loaded! Processing image...")
-                        
-                        # Initialize OCR
-                        reader = easyocr.Reader(['en'])
-                        
-                        # Convert PIL image to numpy array
-                        img_array = np.array(image)
-                        
-                        # Extract text
-                        results = reader.readtext(img_array)
-                        
-                        if results:
-                            st.subheader("📝 Extracted Text")
-                            extracted_text = " ".join([text for (_, text, _) in results])
-                            st.text_area("Text:", extracted_text, height=200)
-                            st.download_button(
-                                "💾 Download Text",
-                                extracted_text,
-                                file_name="extracted_text.txt"
-                            )
-                        else:
-                            st.warning("No text found in the image.")
-                            
-                    except Exception as e:
-                        st.error(f"❌ Error: {str(e)}")
-        
-        with col2:
-            st.markdown("""
-            ### 🎨 AI Image Captioning
-            - BLIP model for accurate captions
-            - Context-aware descriptions
-            - Fast processing
-            """)
-            
-            if st.button("🎨 Generate Caption", key="caption"):
-                with st.spinner("Loading AI model..."):
-                    try:
-                        from transformers import BlipProcessor, BlipForConditionalGeneration
-                        import torch
-                        
-                        st.success("✅ AI model loaded! Generating caption...")
-                        
-                        # Load model
-                        processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
-                        model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
-                        
-                        # Process image
-                        inputs = processor(image, return_tensors="pt")
-                        
-                        # Generate caption
-                        with torch.no_grad():
-                            out = model.generate(**inputs, max_length=50)
-                        
-                        caption = processor.decode(out[0], skip_special_tokens=True)
-                        
-                        st.subheader("📝 Generated Caption")
-                        st.write(caption)
-                        st.download_button(
-                            "💾 Download Caption",
-                            caption,
-                            file_name="caption.txt"
-                        )
-                        
-                    except Exception as e:
-                        st.error(f"❌ Error: {str(e)}")
-                        st.info("💡 Tip: First-time model download may take a few minutes.")
+        st.image(image, use_container_width=True)
     
-    else:
-        # Show welcome screen
-        st.markdown("""
-        ## 👋 Welcome!
+    with col2:
+        st.subheader("🎯 Analysis Options")
         
-        Upload an image using the sidebar to get started with:
+        # OCR Button
+        if st.button("🔍 Extract Text (OCR)", use_container_width=True):
+            with st.spinner("🔄 Loading OCR model... (first time: ~2 min)"):
+                try:
+                    # Install EasyOCR on demand
+                    st.info("📦 Installing EasyOCR and dependencies...")
+                    install_package("easyocr==1.7.0")
+                    install_package("opencv-python-headless==4.8.0.76")
+                    
+                    import easyocr
+                    import numpy as np
+                    
+                    # Initialize reader
+                    st.info("🚀 Initializing OCR engine...")
+                    reader = easyocr.Reader(['en'], gpu=False)
+                    
+                    # Convert PIL to numpy array
+                    st.info("�� Extracting text from image...")
+                    img_array = np.array(image)
+                    
+                    # Extract text
+                    results = reader.readtext(img_array)
+                    
+                    if results:
+                        st.success("✅ Text extracted successfully!")
+                        extracted_text = "\n".join([text[1] for text in results])
+                        st.text_area("📝 Extracted Text:", extracted_text, height=200)
+                        
+                        # Download button
+                        st.download_button(
+                            "💾 Download Text",
+                            extracted_text,
+                            file_name="extracted_text.txt",
+                            mime="text/plain"
+                        )
+                    else:
+                        st.warning("⚠️ No text found in image")
+                        
+                except Exception as e:
+                    st.error(f"❌ Error: {str(e)}")
+                    st.info("💡 Try refreshing the page and trying again")
         
-        - **🔍 OCR**: Extract text from images in multiple languages
-        - **🎨 AI Captioning**: Generate descriptive captions using AI
-        - **🌍 Translation**: Translate text to 19 languages
-        - **�� Text-to-Speech**: Convert text to natural-sounding audio
+        st.markdown("---")
         
-        ### 📌 Sample Features:
-        - Multi-language support (7 OCR languages, 19 translation languages)
-        - High-quality AI models (BLIP, EasyOCR)
-        - Multiple export formats (PDF, DOCX, JSON, SRT, TXT)
-        - Professional-grade accuracy
-        
-        **Get started by uploading an image!** 👆
-        """)
-        
-        # Show sample images if available
-        sample_dir = "sample_images"
-        if os.path.exists(sample_dir):
-            st.subheader("📷 Or try a sample image:")
-            sample_files = [f for f in os.listdir(sample_dir) if f.endswith(('.jpg', '.jpeg', '.png'))]
-            if sample_files:
-                selected_sample = st.selectbox("Choose a sample:", [""] + sample_files)
-                if selected_sample:
-                    sample_path = os.path.join(sample_dir, selected_sample)
-                    from PIL import Image
-                    sample_image = Image.open(sample_path)
-                    st.image(sample_image, caption=f"Sample: {selected_sample}", use_container_width=True)
+        # Caption Button
+        if st.button("💬 Generate AI Caption", use_container_width=True):
+            with st.spinner("🔄 Loading AI model... (first time: ~3 min)"):
+                try:
+                    # Install transformers on demand
+                    st.info("📦 Installing AI models and dependencies...")
+                    install_package("transformers==4.30.0")
+                    install_package("torch==2.0.1+cpu")
+                    
+                    from transformers import BlipProcessor, BlipForConditionalGeneration
+                    import torch
+                    
+                    # Load model
+                    st.info("🚀 Loading BLIP model...")
+                    processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
+                    model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
+                    
+                    # Generate caption
+                    st.info("🎨 Generating caption...")
+                    inputs = processor(image, return_tensors="pt")
+                    
+                    with torch.no_grad():
+                        outputs = model.generate(**inputs, max_length=50)
+                    
+                    caption = processor.decode(outputs[0], skip_special_tokens=True)
+                    
+                    st.success("✅ Caption generated!")
+                    st.info(f"💬 **Caption:** {caption}")
+                    
+                    # Download button
+                    st.download_button(
+                        "💾 Download Caption",
+                        caption,
+                        file_name="caption.txt",
+                        mime="text/plain"
+                    )
+                    
+                except Exception as e:
+                    st.error(f"❌ Error: {str(e)}")
+                    st.info("💡 Try refreshing the page and trying again")
 
-except Exception as e:
-    st.error(f"❌ Application Error: {str(e)}")
-    st.info("Please check the deployment logs for more details.")
+else:
+    # Instructions
+    st.info("👆 Upload an image to get started!")
+    
+    # How to use
+    with st.expander("ℹ️ How to use this tool"):
+        st.markdown("""
+        ### 📖 Instructions
+        
+        1. **Upload Image**: Click the file uploader above and select an image
+        2. **Choose Analysis**: 
+           - Click **🔍 Extract Text** for OCR
+           - Click **💬 Generate Caption** for AI description
+        3. **First Use**: Models download automatically (~2-3 minutes)
+        4. **Subsequent Uses**: Instant results (models are cached!)
+        
+        ### ⚡ Performance
+        - **Startup**: < 30 seconds
+        - **First OCR**: ~2 minutes (downloading model)
+        - **First Caption**: ~3 minutes (downloading model)
+        - **After First Use**: Instant! ⚡
+        
+        ### 🎯 Features
+        - Multi-language OCR support
+        - State-of-the-art BLIP AI model
+        - High accuracy results
+        - Export results as text files
+        """)
+    
+    # Sample info
+    with st.expander("🖼️ Supported Image Formats"):
+        st.markdown("""
+        - PNG (.png)
+        - JPEG (.jpg, .jpeg)
+        - BMP (.bmp)
+        - GIF (.gif)
+        
+        **Recommended**: Use clear, high-resolution images for best results
+        """)
 
 # Footer
 st.markdown("---")
 st.markdown("""
 <div style='text-align: center'>
-    <p>🚀 AI Image Analysis Platform - Professional Edition</p>
-    <p>Powered by BLIP, EasyOCR, and Transformers | Built with Streamlit</p>
+    <p>🚀 <b>AI Image Analysis Platform</b> - Professional Edition</p>
+    <p>Developed by <b>Mohammed Saqhib</b> | Aspiring Data Professional | Bengaluru, India</p>
+    <p>
+        <a href='mailto:msaqhib76@gmail.com'>📧 Email</a> | 
+        <a href='http://www.linkedin.com/in/mohammed-saqhib-87b8b325a'>💼 LinkedIn</a> | 
+        <a href='https://github.com/Mohammed-Saqhib'>🐙 GitHub</a> | 
+        <a href='https://mohammed-saqhib.github.io/Portfolio/'>🌐 Portfolio</a>
+    </p>
+    <p><i>© 2024 Mohammed Saqhib | All Rights Reserved</i></p>
 </div>
 """, unsafe_allow_html=True)
