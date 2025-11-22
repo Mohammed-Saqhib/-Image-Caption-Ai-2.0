@@ -1,123 +1,243 @@
----
+# 🚀 AI Image Analysis Platform---
+
 title: AI Image Analysis Platform
-emoji: 🚀
+
+**Professional REST API + Modern Frontend for OCR, AI Captioning, Translation & Text-to-Speech**emoji: 🚀
+
 colorFrom: blue
-colorTo: purple
-sdk: streamlit
-sdk_version: "1.28.0"
+
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)colorTo: purple
+
+[![Backend](https://img.shields.io/badge/Backend-FastAPI-green)](backend/)sdk: streamlit
+
+[![Frontend](https://img.shields.io/badge/Frontend-React-blue)](frontend/)sdk_version: "1.28.0"
+
 app_file: app.py
-pinned: false
+
+---pinned: false
+
 license: mit
----
 
-# 🚀 AI Image Analysis Platform
+## ✨ Features---
 
-[![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.28%2B-FF4B4B.svg)](https://streamlit.io/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-<div align="center">
+
+- **📸 Multi-Language OCR** - Extract text from images in 9+ languages# 🚀 AI Image Analysis Platform
+
+- **🎨 AI Image Captioning** - Generate descriptions using Salesforce BLIP model  
+
+- **🌍 Translation** - Translate text to 19+ languages[![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
+
+- **🎧 Text-to-Speech** - Convert text to natural audio[![Streamlit](https://img.shields.io/badge/Streamlit-1.28%2B-FF4B4B.svg)](https://streamlit.io/)
+
+- **🔌 REST API** - Full API with Swagger docs[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+- **💰 100% FREE** - Deploy for $0/month forever[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
+
+
+---<div align="center">
+
   <img src="https://img.shields.io/badge/AI-Powered-purple?style=for-the-badge" alt="AI Powered"/>
-  <img src="https://img.shields.io/badge/OCR-Multi--Language-blue?style=for-the-badge" alt="Multi-Language OCR"/>
+
+## 📁 Structure  <img src="https://img.shields.io/badge/OCR-Multi--Language-blue?style=for-the-badge" alt="Multi-Language OCR"/>
+
   <img src="https://img.shields.io/badge/TTS-Smart-orange?style=for-the-badge" alt="Smart TTS"/>
-</div>
 
----
+```</div>
 
-## 📖 Overview
+├── backend/              # FastAPI REST API ✅ COMPLETE
+
+├── frontend/            # React App 🟡 IN PROGRESS  ---
+
+├── DEPLOYMENT_GUIDE.md  # Deploy instructions
+
+└── PROJECT_STATUS.md    # Current status## 📖 Overview
+
+```
 
 A **comprehensive AI-powered platform** that transforms images into actionable content through cutting-edge machine learning. Extract text, generate captions, translate to 19 languages, and create natural-sounding audio - all in one unified interface.
 
+---
+
 Perfect for **accessibility**, **content creation**, **education**, **research**, and **business automation**.
+
+## 🚀 Quick Start
 
 ### ✨ Key Highlights
 
-🔍 **Multi-Language OCR** - Extract text from images in 7 languages  
-🎨 **AI Image Captioning** - Generate descriptions using BLIP model  
-🌍 **Translation** - Translate to 19 languages instantly  
-🎧 **Smart Text-to-Speech** - Auto-translating TTS with natural voices  
-⚡ **Batch Processing** - Process multiple images simultaneously  
-📦 **Multi-Format Export** - PDF, DOCX, JSON, SRT, TXT, and ZIP  
+### Backend
+
+```bash🔍 **Multi-Language OCR** - Extract text from images in 7 languages  
+
+cd backend🎨 **AI Image Captioning** - Generate descriptions using BLIP model  
+
+pip install -r requirements.txt🌍 **Translation** - Translate to 19 languages instantly  
+
+python main.py🎧 **Smart Text-to-Speech** - Auto-translating TTS with natural voices  
+
+# API at http://localhost:7860/api/docs⚡ **Batch Processing** - Process multiple images simultaneously  
+
+```📦 **Multi-Format Export** - PDF, DOCX, JSON, SRT, TXT, and ZIP  
+
 🖼️ **Advanced Preprocessing** - Noise reduction, deskewing, enhancement  
-📊 **Quality Assessment** - Real-time image quality scoring  
 
----
+### Frontend (Coming Soon)📊 **Quality Assessment** - Real-time image quality scoring  
 
-## 🎯 Live Demo
+```bash
+
+cd frontend---
+
+npm install
+
+npm start## 🎯 Live Demo
+
+```
 
 ### Try it now:
-- **🤗 Hugging Face Space**: [Coming Soon - Deploy your fork here!]
+
+---- **🤗 Hugging Face Space**: [Coming Soon - Deploy your fork here!]
+
 - **💻 Local Demo**: Run `./run_pro.sh pro` after installation
+
+## 🌐 Deploy
 
 ### Quick Preview
 
-```bash
-# Clone and run in 3 commands
-git clone https://github.com/YOUR_USERNAME/Image-AI-Platform.git
-cd Image-AI-Platform
+### Backend → [Hugging Face Spaces](https://huggingface.co/spaces) (FREE)
+
+- ✅ 16GB RAM```bash
+
+- ✅ Free GPU option# Clone and run in 3 commands
+
+- ✅ No spin-downgit clone https://github.com/YOUR_USERNAME/Image-AI-Platform.git
+
+- **Cost: $0/month**cd Image-AI-Platform
+
 pip install -r requirements.txt && ./run_pro.sh pro
-```
+
+### Frontend → [Vercel](https://vercel.com) (FREE)```
+
+- ✅ Global CDN
+
+- ✅ Auto HTTPS---
+
+- ✅ Instant deploys
+
+- **Cost: $0/month**## 🌟 Features
+
+
+
+See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for step-by-step instructions.<table>
+
+<tr>
+
+---<td width="50%">
+
+
+
+## 💰 Why This is Better### 📝 OCR Engine
+
+- **7 Languages**: English, Hindi, Kannada, Tamil, Telugu, Marathi, Bengali
+
+| Feature | Old (Streamlit) | New (FastAPI+React) |- **High Accuracy**: EasyOCR with deep learning
+
+|---------|----------------|---------------------|- **Image Enhancement**: Brightness, contrast, sharpness adjustments
+
+| Cost | $7/month | ✅ $0/month |- **Confidence Scoring**: Quality metrics for extracted text
+
+| RAM | 512MB | ✅ 16GB |- **Multiple Formats**: TXT, JSON, PDF, DOCX exports
+
+| Speed | Slow | ✅ Instant |
+
+| API | None | ✅ Full REST API |</td>
+
+| Mobile | Poor | ✅ Perfect |<td width="50%">
+
+
+
+---### 🎨 AI Captioning
+
+- **BLIP Model**: State-of-the-art image understanding
+
+## 📚 API Endpoints- **Dual Modes**: Local processing or Cloud API
+
+- **Customizable**: Adjust caption length and detail
+
+- `POST /api/ocr` - Extract text from images- **Fast**: 1-7 seconds depending on mode
+
+- `POST /api/caption` - Generate AI captions- **Accurate**: Context-aware descriptions
+
+- `POST /api/translate` - Translate text
+
+- `POST /api/tts` - Text-to-speech</td>
+
+</tr>
+
+Full docs at: `/api/docs` when running<tr>
+
+<td width="50%">
 
 ---
 
-## 🌟 Features
-
-<table>
-<tr>
-<td width="50%">
-
-### 📝 OCR Engine
-- **7 Languages**: English, Hindi, Kannada, Tamil, Telugu, Marathi, Bengali
-- **High Accuracy**: EasyOCR with deep learning
-- **Image Enhancement**: Brightness, contrast, sharpness adjustments
-- **Confidence Scoring**: Quality metrics for extracted text
-- **Multiple Formats**: TXT, JSON, PDF, DOCX exports
-
-</td>
-<td width="50%">
-
-### 🎨 AI Captioning
-- **BLIP Model**: State-of-the-art image understanding
-- **Dual Modes**: Local processing or Cloud API
-- **Customizable**: Adjust caption length and detail
-- **Fast**: 1-7 seconds depending on mode
-- **Accurate**: Context-aware descriptions
-
-</td>
-</tr>
-<tr>
-<td width="50%">
-
 ### 🌐 Translation
-- **19 Languages**: Major world languages supported
-- **Google Translate**: Powered by Deep Translator
-- **Context Preserved**: Maintains formatting
-- **SRT Subtitles**: Export for video captioning
-- **Instant**: Sub-second translations
 
-</td>
+## 📊 Status- **19 Languages**: Major world languages supported
+
+- **Google Translate**: Powered by Deep Translator
+
+- ✅ **Backend**: 100% Complete- **Context Preserved**: Maintains formatting
+
+- 🟡 **Frontend**: 60% Complete- **SRT Subtitles**: Export for video captioning
+
+- ✅ **Documentation**: 100% Complete- **Instant**: Sub-second translations
+
+
+
+---</td>
+
 <td width="50%">
+
+## 🛠️ Tech Stack
 
 ### 🎧 Smart TTS
-- **Auto-Translation**: Text automatically translated to voice language
-- **Natural Voices**: System voices for authentic pronunciation
+
+**Backend:** FastAPI, EasyOCR, Transformers, Deep Translator  - **Auto-Translation**: Text automatically translated to voice language
+
+**Frontend:** React, Framer Motion, Axios- **Natural Voices**: System voices for authentic pronunciation
+
 - **9 Languages**: Including all major Indian languages
-- **Adjustable Speed**: 100-300 words per minute
+
+---- **Adjustable Speed**: 100-300 words per minute
+
 - **High Quality**: WAV format audio output
 
+## 📖 Documentation
+
 </td>
-</tr>
-</table>
+
+- [Deployment Guide](DEPLOYMENT_GUIDE.md)</tr>
+
+- [Project Status](PROJECT_STATUS.md)</table>
+
+- [API Docs](http://localhost:7860/api/docs) (when running)
 
 ### 🚀 Professional Edition Features
 
-<details>
-<summary><b>Click to expand advanced features</b></summary>
+---
 
-#### 🖼️ Image Preprocessing
+<details>
+
+**Built with ❤️ by Mohammed Saqhib**<summary><b>Click to expand advanced features</b></summary>
+
+
+
+---#### 🖼️ Image Preprocessing
+
 - **Noise Reduction**: Remove image artifacts
-- **Auto-Deskewing**: Straighten rotated documents
+
+**Get Started:** [Deploy Backend Now](DEPLOYMENT_GUIDE.md) | **Total Cost: $0/month**- **Auto-Deskewing**: Straighten rotated documents
+
 - **Adaptive Thresholding**: Optimize text contrast
 - **Edge Enhancement**: Sharpen text boundaries
 - **Contrast Stretching**: Improve visibility
