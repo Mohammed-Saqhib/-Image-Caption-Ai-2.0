@@ -1,10 +1,11 @@
 ---
-title: AI Image Analysis API
-emoji: 🚀
+title: AI Image Analysis Backend
+emoji: 🤖
 colorFrom: blue
 colorTo: purple
 sdk: docker
 pinned: false
+app_port: 7860
 license: mit
 ---
 
@@ -14,7 +15,7 @@ Professional REST API for OCR, AI Captioning, Translation & Text-to-Speech.
 
 ## Features
 
-- 📸 **Multi-Language OCR** - Extract text in 9+ languages
+- 📸 **Multi-Language OCR** - Extract text in 19+ languages
 - 🎨 **AI Image Captioning** - BLIP model for image descriptions  
 - 🌍 **Translation** - Translate to 19+ languages
 - 🎧 **Text-to-Speech** - Natural voice synthesis
