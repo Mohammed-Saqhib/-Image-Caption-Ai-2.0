@@ -3,8 +3,8 @@
  */
 import axios from 'axios';
 
-// API Base URL - Change this to your Hugging Face Space URL
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+// API Base URL - Production backend on Hugging Face
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://saqhib-ai-image-analysis-backend.hf.space';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
