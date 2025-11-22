@@ -117,6 +117,22 @@ const OCRPanel = ({ onProcess, result, loading, hasImage }) => {
               )}
             </motion.button>
 
+            {result && result.success === false && (
+              <motion.div
+                className="error-box"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="error-header">
+                  <h3>❌ Error</h3>
+                </div>
+                <div className="error-message">
+                  {result.error || 'Failed to extract text. Please try again.'}
+                </div>
+              </motion.div>
+            )}
+
             {result && result.success && (
               <motion.div
                 className="result-box"

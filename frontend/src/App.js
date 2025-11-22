@@ -103,12 +103,19 @@ function App() {
     setLoading(true);
     try {
       const result = await api.extractText(uploadedImage, languages.join(','));
+      console.log('OCR Result:', result);
       setOcrResult(result);
       setActiveTab('ocr');
       toast.success('✅ Text extracted successfully!');
     } catch (error) {
       console.error('OCR Error:', error);
-      toast.error('❌ Failed to extract text. Try again.');
+      const errorMessage = error.response?.data?.detail || error.response?.data?.error || error.message || 'Failed to extract text';
+      toast.error(`❌ ${errorMessage}`);
+      // Set error result for display
+      setOcrResult({
+        success: false,
+        error: errorMessage
+      });
     } finally {
       setLoading(false);
     }
