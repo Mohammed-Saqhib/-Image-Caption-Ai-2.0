@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.DS_Store
+.venv
+env/
+venv/
+*.mp3
+*.wav
+# Don't ignore sample images folder
+!sample_images/
+!sample_images/*.jpg
+!sample_images/*.png
