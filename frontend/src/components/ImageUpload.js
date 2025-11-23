@@ -25,10 +25,33 @@ const ImageUpload = ({ onUpload, imagePreview, loading }) => {
   });
 
   const handleSampleSelect = async (sample) => {
-    const file = await loadSampleImage(sample.path);
-    if (file) {
-      onUpload(file);
-      setShowSamples(false);
+    try {
+      // Try to load from multiple possible paths
+      const possiblePaths = [
+        sample.path,  // Original path
+        `/build${sample.path}`,  // Build folder
+        `${process.env.PUBLIC_URL}${sample.path}`  // Public URL
+      ];
+      
+      let file = null;
+      for (const path of possiblePaths) {
+        file = await loadSampleImage(path);
+        if (file) {
+          console.log(`Loaded sample image from: ${path}`);
+          break;
+        }
+      }
+      
+      if (file) {
+        onUpload(file);
+        setShowSamples(false);
+      } else {
+        console.error(`Failed to load sample image: ${sample.name}`);
+        alert(`Sorry, couldn't load sample image: ${sample.name}. Please try uploading your own image.`);
+      }
+    } catch (error) {
+      console.error('Error selecting sample:', error);
+      alert('Error loading sample image. Please try another one.');
     }
   };
 
@@ -97,10 +120,29 @@ const ImageUpload = ({ onUpload, imagePreview, loading }) => {
                 >
                   <div className="sample-image-wrapper">
                     <img
-                      src={sample.path}
+                      src={`${process.env.PUBLIC_URL}${sample.path}`}
                       alt={sample.name}
+                      loading="lazy"
                       onError={(e) => {
-                        e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23667eea" width="100" height="100"/%3E%3Ctext x="50%25" y="50%25" fill="white" text-anchor="middle" dy=".3em" font-size="14"%3ENo Image%3C/text%3E%3C/svg%3E';
+                        // Try alternative path
+                        if (!e.target.dataset.retried) {
+                          e.target.dataset.retried = 'true';
+                          e.target.src = sample.path;
+                        } else {
+                          // Show placeholder with gradient
+                          e.target.style.display = 'none';
+                          e.target.parentElement.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                          e.target.parentElement.innerHTML = `
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: white;">
+                              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                <polyline points="21 15 16 10 5 21"></polyline>
+                              </svg>
+                              <p style="margin-top: 8px; font-size: 12px;">Preview</p>
+                            </div>
+                          `;
+                        }
                       }}
                     />
                     <div className="sample-overlay">
