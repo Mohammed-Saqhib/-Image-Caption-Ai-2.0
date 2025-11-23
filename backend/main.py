@@ -199,7 +199,8 @@ async def generate_caption(
                 "mode": mode,
                 "confidence": result.get("confidence", 0.90),
                 "model": "Salesforce/blip-image-captioning-base",
-                "has_detailed": detailed
+                "has_detailed": detailed,
+                "insights": result.get("insights", {})
             },
             "timestamp": datetime.now().isoformat()
         })

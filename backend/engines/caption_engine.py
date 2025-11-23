@@ -75,83 +75,41 @@ class CaptionEngine:
             }
     
     def _generate_local(self, image, detailed=True):
-        """Generate caption using local model with NEXT-LEVEL detailed description"""
+        """Generate NEXT-LEVEL caption with rich insights and zero repetition"""
         self.load_model()
         
-        # Generate basic caption with optimized parameters
+        # Generate base caption with MAXIMUM quality
         inputs = self.processor(image, return_tensors="pt").to(self.device)
         outputs = self.model.generate(
             **inputs,
-            max_length=50,
-            num_beams=8,  # Increased for better quality
+            max_length=60,
+            num_beams=10,
+            length_penalty=1.2,
             early_stopping=True,
-            length_penalty=1.0
+            no_repeat_ngram_size=3
         )
         caption = self.processor.decode(outputs[0], skip_special_tokens=True).strip()
+        
+        # Extract insights from the base caption
+        insights = self._extract_insights(caption, image)
         
         detailed_description = caption
         
         if detailed:
-            # Try to generate NEXT-LEVEL detailed description
             try:
-                # Multi-angle analysis with 10 specialized prompts
-                prompts = [
-                    # Core scene understanding
-                    ("a photograph of", "unconditional"),  # Let model describe freely
-                    ("Question: What is the main subject of this image? Answer:", "subject"),
-                    ("Question: What is happening in this image? Answer:", "action"),
-                    
-                    # Environmental details
-                    ("Question: Describe the setting and location. Answer:", "setting"),
-                    ("Question: What is in the background? Answer:", "background"),
-                    
-                    # Visual attributes
-                    ("Question: Describe the colors, lighting and atmosphere. Answer:", "atmosphere"),
-                    ("Question: What objects can you see? Answer:", "objects"),
-                    
-                    # Composition and mood
-                    ("Question: Describe the composition and framing. Answer:", "composition"),
-                    ("Question: What is the mood or feeling of this image? Answer:", "mood"),
-                    
-                    # Additional context
-                    ("Question: Are there any people? What are they doing? Answer:", "people")
-                ]
+                # Multi-aspect analysis for comprehensive description
+                aspects = {
+                    'subject': self._analyze_subject(image, caption),
+                    'setting': self._analyze_setting(image, caption),
+                    'composition': self._analyze_composition(image, caption),
+                    'atmosphere': self._analyze_atmosphere(image, caption)
+                }
                 
-                descriptions = {}
-                for prompt, category in prompts:
-                    try:
-                        inputs = self.processor(image, text=prompt, return_tensors="pt").to(self.device)
-                        outputs = self.model.generate(
-                            **inputs,
-                            max_length=150,
-                            min_length=10,
-                            num_beams=8,
-                            temperature=0.9,
-                            do_sample=True,
-                            top_k=50,
-                            top_p=0.95,
-                            repetition_penalty=1.3,
-                            early_stopping=True
-                        )
-                        desc = self.processor.decode(outputs[0], skip_special_tokens=True)
-                        
-                        # Advanced prompt removal
-                        desc = self._clean_description(desc, prompt)
-                        
-                        if desc and len(desc) > 8:
-                            descriptions[category] = desc
-                    except Exception as e:
-                        print(f"Prompt '{category}' failed: {e}")
-                        continue
-                
-                # Build next-level detailed description
-                if descriptions:
-                    detailed_description = self._build_next_level_description(descriptions, caption)
-                else:
-                    detailed_description = self._enhance_caption(caption)
+                # Build professional narrative
+                detailed_description = self._build_narrative(caption, aspects, insights)
                     
             except Exception as e:
-                print(f"Detailed description generation failed: {e}, using enhanced caption")
+                print(f"Detailed generation failed: {e}")
                 detailed_description = self._enhance_caption(caption)
         
         return {
@@ -159,183 +117,162 @@ class CaptionEngine:
             "detailed_description": detailed_description,
             "confidence": 0.90,
             "mode": "local",
-            "has_detailed": detailed
+            "has_detailed": detailed,
+            "insights": insights
         }
     
-    def _clean_description(self, text, prompt):
-        """Advanced cleaning of model output - removes ALL artifacts"""
-        if not text:
-            return ""
+    def _is_meaningful(self, text):
+        """Check if text is actually meaningful, not gibberish"""
+        if not text or len(text) < 15:
+            return False
         
-        # Remove the original prompt completely
-        text = text.replace(prompt, "").strip()
+        # Check for excessive repetition
+        words = text.lower().split()
+        if len(words) > 5:
+            # Count repeated words
+            word_counts = {}
+            for word in words:
+                if len(word) > 2:  # Skip short words
+                    word_counts[word] = word_counts.get(word, 0) + 1
+            
+            # If any word repeats more than 3 times, it's gibberish
+            if any(count > 3 for count in word_counts.values()):
+                return False
         
-        # Remove ALL variations of Q&A artifacts (case-insensitive)
-        import re
-        
-        # Remove Question/Answer patterns with their text
-        text = re.sub(r'[Qq]uestion\s*:.*?[Aa]nswer\s*:', '', text, flags=re.DOTALL)
-        text = re.sub(r'[Qq]uestion\s*:.*?\?', '', text)
-        text = re.sub(r'[Aa]nswer\s*:', '', text)
-        text = re.sub(r'[Qq]uestion\s*:', '', text)
-        
-        # Remove common AI phrases
-        artifacts = [
-            "describe this image", "this image shows", "in this image",
-            "the image shows", "i can see", "there is", "there are",
-            "what is happening", "what are they doing", "what can you see",
-            "what objects", "describe the", "notable objects include",
-            "the setting appears to be", "appears to be", "seems to be",
-            "it looks like", "it appears", "what is", "what are"
+        # Check for nonsense patterns
+        gibberish_patterns = [
+            'why why', 'can you see', 'what what', 'the the',
+            'see see', 'yes yes', 'no no', 'answer answer'
         ]
         
         text_lower = text.lower()
-        for artifact in artifacts:
-            if artifact in text_lower:
-                # Case-insensitive replacement
-                pattern = re.compile(re.escape(artifact), re.IGNORECASE)
-                text = pattern.sub('', text)
+        if any(pattern in text_lower for pattern in gibberish_patterns):
+            return False
         
-        # Clean up multiple spaces and punctuation
-        text = re.sub(r'\s+', ' ', text)
-        text = re.sub(r'\s*\?\s*', '. ', text)
-        text = re.sub(r'\s*:\s*', '. ', text)
-        text = re.sub(r'\.+', '.', text)
+        return True
+    
+    def _ultra_clean(self, text, prompt):
+        """ULTRA-AGGRESSIVE cleaning - remove EVERYTHING unwanted"""
+        import re
+        
+        if not text:
+            return ""
+        
+        # Remove the prompt completely
+        text = text.replace(prompt, "").strip()
+        
+        # Remove ALL question/answer artifacts
+        text = re.sub(r'[Qq]uestion[s]?\s*:.*?(?=[A-Z]|$)', '', text, flags=re.DOTALL)
+        text = re.sub(r'[Aa]nswer[s]?\s*:.*?(?=[A-Z]|$)', '', text, flags=re.DOTALL)
+        text = re.sub(r'[Qq]uestion[s]?\s*[:\-]', '', text)
+        text = re.sub(r'[Aa]nswer[s]?\s*[:\-]', '', text)
+        
+        # Remove repetitive patterns (why why why, can you see, etc.)
+        text = re.sub(r'\b(\w+)(\s+\1){2,}\b', r'\1', text, flags=re.IGNORECASE)
+        
+        # Remove ALL prompt-like phrases
+        bad_phrases = [
+            'describe this image', 'describe the image', 'this image shows',
+            'in this image', 'the image shows', 'i can see', 'you can see',
+            'can you see', 'what can you see', 'what do you see',
+            'there is', 'there are', 'what is', 'what are',
+            'why why', 'visible objects include', 'notable objects',
+            'appears to be', 'seems to be', 'looks like',
+            'it appears', 'it seems', 'it looks',
+            'describe what', 'what you see', 'in the image',
+            'the background features', 'background features'
+        ]
+        
+        for phrase in bad_phrases:
+            text = re.sub(r'\b' + re.escape(phrase) + r'\b', '', text, flags=re.IGNORECASE)
+        
+        # Clean up punctuation
+        text = re.sub(r'\?+', '.', text)  # Replace ? with .
+        text = re.sub(r':+', '.', text)   # Replace : with .
+        text = re.sub(r'\.{2,}', '.', text)  # Multiple periods to single
+        text = re.sub(r'\s*\.\s*', '. ', text)  # Space after periods
+        text = re.sub(r'\s+', ' ', text)  # Multiple spaces to single
+        
+        # Remove sentence fragments
+        text = re.sub(r'\b(in|on|at|with|by|from|to)\s*\.$', '', text, flags=re.IGNORECASE)
+        
+        # Strip and capitalize
         text = text.strip()
-        
-        # Remove leading articles if sentence starts awkwardly
-        if text and text.startswith(("a ", "an ", "the ", "A ", "An ", "The ")):
-            # Only remove if followed by lowercase (not a proper noun)
-            parts = text.split(' ', 1)
-            if len(parts) > 1 and parts[1] and parts[1][0].islower():
-                text = parts[1]
-        
-        # Ensure proper sentence structure
-        if text:
+        if text and len(text) > 1:
+            # Remove leading lowercase articles
+            if text.split()[0].lower() in ['a', 'an', 'the', 'in', 'on', 'at']:
+                text = ' '.join(text.split()[1:])
+            
             # Capitalize first letter
-            text = text[0].upper() + text[1:] if len(text) > 1 else text.upper()
-            
-            # Ensure proper ending
-            if not text.endswith(('.', '!', '?')):
-                text = text + '.'
-            
-            # Fix double periods
-            text = text.replace('..', '.')
+            if text:
+                text = text[0].upper() + text[1:]
+        
+        # Ensure proper ending
+        if text and not text.endswith(('.', '!', '?')):
+            text = text + '.'
+        
+        # Final cleanup
+        text = text.replace('..', '.').strip()
         
         return text
     
-    def _build_next_level_description(self, descriptions, base_caption):
-        """Build the BEST POSSIBLE detailed description from categorized analysis"""
-        parts = []
+    def _build_perfect_description(self, descriptions, base_caption):
+        """Build ABSOLUTELY PERFECT description - no compromises"""
         
-        # Filter out empty or very short descriptions
-        descriptions = {k: v for k, v in descriptions.items() if v and len(v) > 8}
+        # Filter to only truly good descriptions
+        good_descriptions = []
+        for desc in descriptions:
+            if desc and len(desc) > 25 and self._is_meaningful(desc):
+                good_descriptions.append(desc)
         
-        if not descriptions:
+        if not good_descriptions:
             return self._enhance_caption(base_caption)
         
-        # Build opening statement (most natural description)
-        opening = None
-        if "unconditional" in descriptions:
-            opening = descriptions["unconditional"]
-            parts.append(f"This photograph shows {opening.lower()}" if not opening.lower().startswith(('a ', 'an ', 'the ')) else f"This photograph shows {opening}")
-        elif "subject" in descriptions:
-            subject = descriptions["subject"]
-            parts.append(f"The main focus of this image is {subject.lower()}")
+        # Start with the best base
+        best = max(good_descriptions, key=len)
+        
+        # Build professional description
+        if best.lower().startswith(('a ', 'an ', 'the ')):
+            description = f"This photograph shows {best.lower()}"
         else:
-            parts.append(f"This image depicts {base_caption}")
+            description = f"This photograph shows {best}"
         
-        # Add action/activity if meaningful and not redundant
-        if "action" in descriptions:
-            action = descriptions["action"]
-            # Only add if it's not already mentioned in opening
-            if opening and action.lower() not in opening.lower():
-                if len(action) > 15:  # Meaningful content
-                    parts.append(action)
+        # Add context from caption if not already mentioned
+        if base_caption.lower() not in description.lower():
+            description = f"This photograph shows {base_caption}. {best}"
         
-        # Add people details if present
-        if "people" in descriptions:
-            people_desc = descriptions["people"]
-            # Only if it describes actual people
-            if "no" not in people_desc.lower() and "not" not in people_desc.lower():
-                if len(people_desc) > 20 and not any(people_desc.lower() in p.lower() for p in parts):
-                    parts.append(people_desc)
-        
-        # Add object details
-        if "objects" in descriptions:
-            obj_desc = descriptions["objects"]
-            if len(obj_desc) > 15:
+        # Add ONE more detail if available and meaningful
+        for desc in good_descriptions:
+            if desc != best and len(desc) > 30:
                 # Check it's not redundant
-                if not any(obj_desc.lower() in p.lower() for p in parts):
-                    # Natural integration
-                    if any(word in obj_desc.lower() for word in ['various', 'several', 'multiple', 'include']):
-                        parts.append(obj_desc)
-                    else:
-                        parts.append(f"Visible objects include {obj_desc.lower()}")
+                if not any(word in description.lower() for word in desc.lower().split()[:3]):
+                    description = f"{description.rstrip('.')}. {desc}"
+                    break
         
-        # Add setting/location
-        setting_added = False
-        if "setting" in descriptions:
-            setting = descriptions["setting"]
-            if len(setting) > 15 and not any(setting.lower() in p.lower() for p in parts):
-                parts.append(f"The scene is set in {setting.lower()}")
-                setting_added = True
-        
-        if not setting_added and "background" in descriptions:
-            bg = descriptions["background"]
-            if len(bg) > 15 and not any(bg.lower() in p.lower() for p in parts):
-                parts.append(f"The background features {bg.lower()}")
-        
-        # Add atmosphere/lighting
-        if "atmosphere" in descriptions:
-            atm = descriptions["atmosphere"]
-            if len(atm) > 20 and not any(atm.lower() in p.lower() for p in parts):
-                parts.append(atm)
-        
-        # Add composition if meaningful
-        if "composition" in descriptions:
-            comp = descriptions["composition"]
-            if len(comp) > 25:  # Only substantial composition details
-                if not any(comp.lower() in p.lower() for p in parts):
-                    parts.append(comp)
-        
-        # Add mood as closing touch
-        if "mood" in descriptions:
-            mood = descriptions["mood"]
-            if len(mood) > 15 and not any(mood.lower() in p.lower() for p in parts):
-                parts.append(f"The overall mood is {mood.lower()}")
-        
-        # Limit to best 5-6 parts for readability
-        parts = parts[:6]
-        
-        # Combine with natural flow
-        if len(parts) == 1:
-            description = parts[0]
-        elif len(parts) == 2:
-            description = f"{parts[0]} {parts[1]}"
-        else:
-            # Join first parts naturally, last part with "Additionally" or smooth connector
-            main_parts = ". ".join(parts[:-1])
-            last_part = parts[-1]
-            
-            # Smart connector
-            if len(parts) > 3:
-                description = f"{main_parts}. Additionally, {last_part.lower()}"
-            else:
-                description = f"{main_parts}. {last_part}"
-        
-        # Final polish
-        description = self._final_polish(description)
+        # ULTRA polish
+        description = self._ultra_polish(description)
         
         return description
     
-    def _final_polish(self, text):
-        """Final polish to ensure PERFECT natural flowing text"""
+    def _clean_description(self, text, prompt):
+        """Legacy method - redirects to ultra_clean"""
+        return self._ultra_clean(text, prompt)
+    
+    def _build_next_level_description(self, descriptions, base_caption):
+        """Legacy method - redirects to build_perfect_description"""
+        desc_list = list(descriptions.values()) if isinstance(descriptions, dict) else descriptions
+        return self._build_perfect_description(desc_list, base_caption)
+    
+    def _ultra_polish(self, text):
+        """ULTRA polish for ABSOLUTELY PERFECT text"""
         import re
         
-        # Remove duplicate sentences (even if slightly different)
-        sentences = text.split('. ')
-        unique_sentences = []
+        if not text:
+            return ""
+        
+        # Split into sentences
+        sentences = re.split(r'[.!?]+', text)
+        clean_sentences = []
         seen = set()
         
         for sent in sentences:
@@ -343,66 +280,62 @@ class CaptionEngine:
             if not sent or len(sent) < 10:
                 continue
             
-            # Normalize for comparison
+            # Check if meaningful
+            if not self._is_meaningful(sent):
+                continue
+            
+            # Normalize for duplicate checking
             normalized = ' '.join(sent.lower().split())
             
-            # Check for duplicates with fuzzy matching
+            # Check similarity with existing sentences
             is_duplicate = False
             for seen_sent in seen:
-                # If 80% of words are the same, it's a duplicate
-                sent_words = set(normalized.split())
-                seen_words = set(seen_sent.split())
+                words_sent = set(normalized.split())
+                words_seen = set(seen_sent.split())
                 
-                if sent_words and seen_words:
-                    overlap = len(sent_words & seen_words)
-                    similarity = overlap / max(len(sent_words), len(seen_words))
+                if words_sent and words_seen:
+                    overlap = len(words_sent & words_seen)
+                    similarity = overlap / max(len(words_sent), len(words_seen))
                     
-                    if similarity > 0.8:
+                    if similarity > 0.75:  # 75% threshold
                         is_duplicate = True
                         break
             
             if not is_duplicate:
-                unique_sentences.append(sent)
+                # Capitalize properly
+                sent = sent[0].upper() + sent[1:] if len(sent) > 1 else sent.upper()
+                clean_sentences.append(sent)
                 seen.add(normalized)
         
-        # Rejoin sentences
-        polished = '. '.join(unique_sentences)
+        # Rejoin with periods
+        if not clean_sentences:
+            return self._enhance_caption(text.split('.')[0])
         
-        # Clean up any remaining artifacts
-        polished = re.sub(r'\s+', ' ', polished)  # Multiple spaces
-        polished = re.sub(r'\.+', '.', polished)  # Multiple periods
-        polished = re.sub(r'\s*\.\s*', '. ', polished)  # Space around periods
-        polished = re.sub(r'\s+([.,!?])', r'\1', polished)  # Space before punctuation
+        result = '. '.join(clean_sentences)
         
-        # Remove any remaining question marks from prompts
-        polished = polished.replace('?', '.')
-        polished = polished.replace('..', '.')
+        # Final cleanup
+        result = re.sub(r'\s+', ' ', result)  # Multiple spaces
+        result = re.sub(r'\s*\.\s*', '. ', result)  # Spaces around periods
+        result = re.sub(r'\.+', '.', result)  # Multiple periods
         
         # Ensure proper ending
-        polished = polished.strip()
-        if polished and not polished.endswith(('.', '!', '?')):
-            polished += '.'
+        if result and not result.endswith(('.', '!', '?')):
+            result = result + '.'
         
-        # Capitalize properly after periods
-        sentences = polished.split('. ')
-        capitalized = []
-        for sent in sentences:
-            sent = sent.strip()
-            if sent:
-                sent = sent[0].upper() + sent[1:] if len(sent) > 1 else sent.upper()
-                capitalized.append(sent)
+        # Remove any remaining artifacts
+        result = result.replace('?', '.')
+        result = result.replace(':', '.')
+        result = result.replace('..', '.')
         
-        polished = '. '.join(capitalized)
-        
-        # Final cleanup - remove any orphaned lowercase starts
-        polished = polished.strip()
-        if polished and polished[0].islower():
-            polished = polished[0].upper() + polished[1:]
-        
-        return polished
+        return result.strip()
+    
+    def _final_polish(self, text):
+        """Final polish to ensure PERFECT natural flowing text"""
+        # Use ultra polish for everything now
+        return self._ultra_polish(text)
     
     def _generate_cloud(self, image_path, detailed=True):
-        """Generate caption using Hugging Face API"""
+        """Generate caption using Hugging Face API with insights"""
         # Basic caption
         API_URL = "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-base"
         
@@ -418,46 +351,24 @@ class CaptionEngine:
         else:
             raise Exception(f"API request failed: {response.status_code}")
         
+        # Extract insights from caption
+        from PIL import Image
+        image = Image.open(image_path).convert('RGB')
+        insights = self._extract_insights(caption, image)
+        
         detailed_description = caption
         
-        # Try to get detailed description
+        # Enhance for detailed description
         if detailed:
-            try:
-                # Use BLIP-2 for detailed description
-                DETAILED_API_URL = "https://api-inference.huggingface.co/models/Salesforce/blip2-opt-2.7b"
-                
-                # Send with prompt
-                import json
-                payload = {
-                    "inputs": "Describe this image in detail, including people, objects, actions, background, and setting:"
-                }
-                
-                response = requests.post(
-                    DETAILED_API_URL,
-                    headers={"Content-Type": "application/json"},
-                    data=json.dumps(payload),
-                    files={"file": open(image_path, "rb")}
-                )
-                
-                if response.status_code == 200:
-                    result = response.json()
-                    if isinstance(result, list) and len(result) > 0:
-                        detailed_description = result[0].get("generated_text", caption)
-                    else:
-                        detailed_description = self._enhance_caption(caption)
-                else:
-                    detailed_description = self._enhance_caption(caption)
-                    
-            except Exception as e:
-                print(f"Detailed cloud description failed: {e}")
-                detailed_description = self._enhance_caption(caption)
+            detailed_description = self._enhance_caption(caption)
         
         return {
             "caption": caption,
             "detailed_description": detailed_description,
             "confidence": 0.92,
             "mode": "cloud",
-            "has_detailed": detailed
+            "has_detailed": detailed,
+            "insights": insights
         }
     
     def _enhance_caption(self, caption):
@@ -562,3 +473,208 @@ class CaptionEngine:
             desc_dict[f"aspect_{i}"] = desc
         
         return self._build_next_level_description(desc_dict, base_caption)
+    
+    def _extract_insights(self, caption, image):
+        """Extract structured insights from caption and image"""
+        caption_lower = caption.lower()
+        
+        # Detect subject type
+        subjects = []
+        subject_keywords = {
+            'person': ['person', 'man', 'woman', 'child', 'people', 'boy', 'girl'],
+            'animal': ['dog', 'cat', 'bird', 'horse', 'elephant', 'animal'],
+            'vehicle': ['car', 'bike', 'bicycle', 'motorcycle', 'truck', 'bus'],
+            'nature': ['tree', 'flower', 'mountain', 'ocean', 'forest', 'landscape'],
+            'object': ['phone', 'computer', 'book', 'chair', 'table', 'bottle']
+        }
+        
+        for category, keywords in subject_keywords.items():
+            if any(kw in caption_lower for kw in keywords):
+                subjects.append(category)
+        
+        if not subjects:
+            subjects = ['general']
+        
+        # Detect setting
+        settings = []
+        setting_keywords = {
+            'outdoor': ['outdoor', 'outside', 'street', 'park', 'mountain', 'beach', 'trail'],
+            'indoor': ['indoor', 'inside', 'room', 'kitchen', 'office', 'building'],
+            'urban': ['city', 'street', 'building', 'urban', 'downtown'],
+            'nature': ['nature', 'forest', 'mountain', 'beach', 'lake', 'countryside']
+        }
+        
+        for setting, keywords in setting_keywords.items():
+            if any(kw in caption_lower for kw in keywords):
+                settings.append(setting)
+        
+        if not settings:
+            settings = ['general']
+        
+        # Extract key objects/elements
+        objects = self._extract_objects(caption_lower)
+        
+        # Detect mood/atmosphere
+        mood = self._detect_mood(caption_lower)
+        
+        # Extract keywords
+        keywords = self._extract_keywords(caption_lower)
+        
+        return {
+            'subjects': subjects,
+            'settings': settings,
+            'objects': objects,
+            'mood': mood,
+            'keywords': keywords
+        }
+    
+    def _extract_objects(self, caption_lower):
+        """Extract visible objects from caption"""
+        object_words = ['backpack', 'hat', 'glasses', 'shirt', 'shoes', 'bag', 'phone', 
+                       'camera', 'bike', 'car', 'tree', 'bench', 'sign', 'building',
+                       'mountain', 'sky', 'cloud', 'water', 'rock', 'path', 'trail']
+        
+        found = []
+        for obj in object_words:
+            if obj in caption_lower:
+                found.append(obj)
+        
+        return found[:5]  # Top 5 objects
+    
+    def _detect_mood(self, caption_lower):
+        """Detect mood/atmosphere from caption"""
+        mood_keywords = {
+            'peaceful': ['peaceful', 'calm', 'serene', 'quiet', 'tranquil'],
+            'energetic': ['running', 'jumping', 'playing', 'active', 'dynamic'],
+            'professional': ['business', 'office', 'formal', 'professional'],
+            'casual': ['casual', 'relaxed', 'informal', 'everyday'],
+            'adventurous': ['hiking', 'climbing', 'exploring', 'adventure', 'trail']
+        }
+        
+        for mood, keywords in mood_keywords.items():
+            if any(kw in caption_lower for kw in keywords):
+                return mood
+        
+        return 'neutral'
+    
+    def _extract_keywords(self, caption_lower):
+        """Extract meaningful keywords from caption"""
+        # Remove common words
+        stop_words = {'a', 'an', 'the', 'in', 'on', 'at', 'with', 'is', 'are', 'of', 'to'}
+        words = caption_lower.split()
+        keywords = [w for w in words if w not in stop_words and len(w) > 3]
+        
+        return keywords[:6]  # Top 6 keywords
+    
+    def _analyze_subject(self, image, caption):
+        """Analyze the main subject of the image"""
+        try:
+            prompt = "the main subject is"
+            inputs = self.processor(image, text=prompt, return_tensors="pt").to(self.device)
+            outputs = self.model.generate(
+                **inputs,
+                max_length=50,
+                num_beams=5,
+                early_stopping=True,
+                no_repeat_ngram_size=3
+            )
+            result = self.processor.decode(outputs[0], skip_special_tokens=True)
+            return self._ultra_clean(result, prompt)
+        except:
+            return caption.split('.')[0]
+    
+    def _analyze_setting(self, image, caption):
+        """Analyze the setting/environment"""
+        try:
+            prompt = "the location is"
+            inputs = self.processor(image, text=prompt, return_tensors="pt").to(self.device)
+            outputs = self.model.generate(
+                **inputs,
+                max_length=50,
+                num_beams=5,
+                early_stopping=True,
+                no_repeat_ngram_size=3
+            )
+            result = self.processor.decode(outputs[0], skip_special_tokens=True)
+            return self._ultra_clean(result, prompt)
+        except:
+            return "a natural setting"
+    
+    def _analyze_composition(self, image, caption):
+        """Analyze composition and framing"""
+        try:
+            prompt = "the composition shows"
+            inputs = self.processor(image, text=prompt, return_tensors="pt").to(self.device)
+            outputs = self.model.generate(
+                **inputs,
+                max_length=50,
+                num_beams=5,
+                early_stopping=True,
+                no_repeat_ngram_size=3
+            )
+            result = self.processor.decode(outputs[0], skip_special_tokens=True)
+            return self._ultra_clean(result, prompt)
+        except:
+            return "balanced framing"
+    
+    def _analyze_atmosphere(self, image, caption):
+        """Analyze atmosphere and lighting"""
+        try:
+            prompt = "the atmosphere is"
+            inputs = self.processor(image, text=prompt, return_tensors="pt").to(self.device)
+            outputs = self.model.generate(
+                **inputs,
+                max_length=50,
+                num_beams=5,
+                early_stopping=True,
+                no_repeat_ngram_size=3
+            )
+            result = self.processor.decode(outputs[0], skip_special_tokens=True)
+            return self._ultra_clean(result, prompt)
+        except:
+            return "natural lighting"
+    
+    def _build_narrative(self, caption, aspects, insights):
+        """Build a professional narrative from multi-aspect analysis"""
+        sentences = []
+        
+        # Opening sentence with context
+        if caption:
+            sentences.append(f"This photograph captures {caption.lower()}.")
+        
+        # Subject detail
+        if aspects['subject'] and aspects['subject'] != caption:
+            clean_subject = aspects['subject'].strip()
+            if clean_subject and len(clean_subject) > 5 and clean_subject.lower() not in caption.lower():
+                sentences.append(f"{clean_subject.capitalize()}.")
+        
+        # Setting detail
+        if aspects['setting'] and aspects['setting'] != "a natural setting":
+            clean_setting = aspects['setting'].strip()
+            if clean_setting and len(clean_setting) > 5:
+                if not clean_setting[0].isupper():
+                    clean_setting = clean_setting.capitalize()
+                if not clean_setting.endswith('.'):
+                    clean_setting += '.'
+                sentences.append(f"The setting features {clean_setting.lower()}")
+        
+        # Composition or atmosphere (choose the better one)
+        comp = aspects['composition'].strip() if aspects['composition'] else ""
+        atmos = aspects['atmosphere'].strip() if aspects['atmosphere'] else ""
+        
+        if comp and len(comp) > 10 and comp != "balanced framing":
+            if not any(word in ' '.join(sentences).lower() for word in comp.lower().split()[:3]):
+                sentences.append(f"The composition reveals {comp.lower()}.")
+        elif atmos and len(atmos) > 10 and atmos != "natural lighting":
+            if not any(word in ' '.join(sentences).lower() for word in atmos.lower().split()[:3]):
+                sentences.append(f"The atmosphere conveys {atmos.lower()}.")
+        
+        # Combine and polish
+        narrative = ' '.join(sentences)
+        narrative = self._ultra_polish(narrative)
+        
+        # Ensure it's substantially better than base caption
+        if len(narrative) < len(caption) + 20:
+            narrative = self._enhance_caption(caption)
+        
+        return narrative
