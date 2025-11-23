@@ -1,7 +1,6 @@
 """
 Text-to-Speech Engine for FastAPI Backend
 """
-import pyttsx3
 import subprocess
 import platform
 from pathlib import Path
@@ -9,17 +8,37 @@ import uuid
 import re
 from deep_translator import GoogleTranslator
 
+# Only import pyttsx3 on macOS
+try:
+    import pyttsx3
+    PYTTSX3_AVAILABLE = True
+except:
+    PYTTSX3_AVAILABLE = False
+
+# Import gTTS for Linux servers
+try:
+    from gtts import gTTS
+    GTTS_AVAILABLE = True
+except:
+    GTTS_AVAILABLE = False
+
 class TTSEngine:
     def __init__(self):
         """Initialize TTS engine"""
         self.system = platform.system()
         self.output_dir = Path("outputs")
         self.output_dir.mkdir(exist_ok=True)
+        self.engine = None
         
-        if self.system != "Darwin":  # Not macOS
-            self.engine = pyttsx3.init()
+        # Only initialize pyttsx3 on macOS
+        if self.system == "Darwin" and PYTTSX3_AVAILABLE:
+            try:
+                self.engine = pyttsx3.init()
+            except Exception as e:
+                print(f"⚠️ pyttsx3 initialization failed: {e}")
+                self.engine = None
         
-        # Language code mapping for translation
+        print(f"🎧 TTS Engine initialized ({self.system}, gTTS: {GTTS_AVAILABLE}, pyttsx3: {PYTTSX3_AVAILABLE})")
         self.lang_codes = {
             'hi': 'hi',     # Hindi
             'bn': 'bn',     # Bengali
@@ -109,16 +128,22 @@ class TTSEngine:
             # Auto-translate if needed (English → target language)
             processed_text = self._translate_if_needed(text, language)
             
-            # Generate unique filename with appropriate extension
-            if self.system == "Darwin":
-                audio_file = self.output_dir / f"speech_{uuid.uuid4()}.aiff"
-            else:
-                audio_file = self.output_dir / f"speech_{uuid.uuid4()}.wav"
+            # Generate unique filename
+            audio_file = self.output_dir / f"speech_{uuid.uuid4()}.mp3"
             
             if self.system == "Darwin":  # macOS
+                # For macOS, use AIFF format with 'say' command
+                audio_file = self.output_dir / f"speech_{uuid.uuid4()}.aiff"
                 return self._generate_macos(processed_text, language, rate, audio_file)
-            else:
+            elif GTTS_AVAILABLE:
+                # For Linux/servers, use gTTS (Google TTS)
+                return self._generate_gtts(processed_text, language, audio_file)
+            elif self.engine is not None:
+                # Fallback to pyttsx3 if available
+                audio_file = self.output_dir / f"speech_{uuid.uuid4()}.wav"
                 return self._generate_pyttsx3(processed_text, language, rate, audio_file)
+            else:
+                raise Exception("No TTS engine available. Please install gTTS or pyttsx3.")
                 
         except Exception as e:
             print(f"TTS Error: {str(e)}")
@@ -253,6 +278,63 @@ class TTSEngine:
             "rate": adjusted_rate
         }
     
+    def _generate_gtts(self, text, language, audio_file):
+        """Generate speech using Google TTS (gTTS) - Works on Linux servers"""
+        if not GTTS_AVAILABLE:
+            raise Exception("gTTS not available. Please install: pip install gTTS")
+        
+        # Map language codes to gTTS compatible codes
+        gtts_lang_map = {
+            'en': 'en', 'en-us': 'en', 'en-gb': 'en', 'en-au': 'en',
+            'hi': 'hi',  # Hindi
+            'kn': 'kn',  # Kannada  
+            'bn': 'bn',  # Bengali
+            'ta': 'ta',  # Tamil
+            'te': 'te',  # Telugu
+            'ml': 'ml',  # Malayalam
+            'gu': 'gu',  # Gujarati
+            'mr': 'mr',  # Marathi
+            'pa': 'pa',  # Punjabi
+            'ur': 'ur',  # Urdu
+            'ar': 'ar',  # Arabic
+            'es': 'es',  # Spanish
+            'fr': 'fr',  # French
+            'de': 'de',  # German
+            'it': 'it',  # Italian
+            'pt': 'pt',  # Portuguese
+            'ru': 'ru',  # Russian
+            'ja': 'ja',  # Japanese
+            'ko': 'ko',  # Korean
+            'zh': 'zh-cn',  # Chinese
+            'th': 'th',  # Thai
+            'tr': 'tr',  # Turkish
+            'nl': 'nl',  # Dutch
+            'sv': 'sv',  # Swedish
+            'id': 'id',  # Indonesian
+            'vi': 'vi',  # Vietnamese
+        }
+        
+        # Get gTTS language code
+        gtts_lang = gtts_lang_map.get(language.lower(), 'en')
+        
+        try:
+            # Generate speech using gTTS
+            tts = gTTS(text=text, lang=gtts_lang, slow=False)
+            tts.save(str(audio_file))
+            
+            print(f"✓ Generated speech with gTTS: {gtts_lang}")
+            
+            return {
+                "success": True,
+                "audio_file": str(audio_file),
+                "engine": "gTTS",
+                "language": language,
+                "format": "mp3"
+            }
+        except Exception as e:
+            print(f"✗ gTTS generation failed: {e}")
+            raise
+    
     def _generate_pyttsx3(self, text, language, rate, audio_file):
         """Generate speech using pyttsx3 with language support"""
         # Set properties for better quality
@@ -329,7 +411,8 @@ class TTSEngine:
     
     def get_available_voices(self):
         """Get list of high-quality voices - Focus on English, Hindi, and Kannada"""
-        if self.system == "Darwin":
+        if self.system == "Darwin" and self.engine is not None:
+            # macOS with pyttsx3
             return [
                 # English variants - Premium quality
                 {"code": "en", "name": "English (US) - Premium", "voice": "Alex", "gender": "male", "quality": "premium"},
@@ -342,32 +425,55 @@ class TTSEngine:
                 # Kannada - Premium quality native voice
                 {"code": "kn", "name": "ಕನ್ನಡ Kannada - Premium", "voice": "Soumya", "gender": "female", "quality": "premium"},
             ]
+        elif GTTS_AVAILABLE:
+            # Linux/Server with gTTS - Return supported languages
+            return [
+                # English variants
+                {"code": "en", "name": "English (US) - Premium", "engine": "gTTS", "quality": "premium"},
+                {"code": "en-gb", "name": "English (UK)", "engine": "gTTS", "quality": "high"},
+                
+                # Hindi - Premium quality
+                {"code": "hi", "name": "हिंदी Hindi - Premium", "engine": "gTTS", "quality": "premium"},
+                
+                # Kannada - Premium quality
+                {"code": "kn", "name": "ಕನ್ನಡ Kannada - Premium", "engine": "gTTS", "quality": "premium"},
+            ]
+        elif self.engine is not None:
+            # Fallback to pyttsx3 voices
+            try:
+                voices = self.engine.getProperty('voices')
+                filtered_voices = []
+                
+                # Priority languages
+                priority_langs = ['english', 'hindi', 'kannada']
+                
+                for voice in voices:
+                    voice_name_lower = voice.name.lower()
+                    for lang in priority_langs:
+                        if lang in voice_name_lower:
+                            filtered_voices.append({
+                                "code": lang[:2],
+                                "name": voice.name,
+                                "id": voice.id,
+                                "quality": "high"
+                            })
+                            break
+                
+                # If no specific voices found, return first 3 voices
+                if not filtered_voices and len(voices) > 0:
+                    filtered_voices = [
+                        {"code": "en", "name": voices[i].name if i < len(voices) else "Default", 
+                         "id": voices[i].id if i < len(voices) else 0, "quality": "standard"}
+                        for i in range(min(3, len(voices)))
+                    ]
+                
+                return filtered_voices if filtered_voices else [{"code": "en", "name": "Default", "quality": "standard"}]
+            except:
+                return [{"code": "en", "name": "English (Default)", "quality": "standard"}]
         else:
-            # For non-macOS, filter to show only English, Hindi, Kannada
-            voices = self.engine.getProperty('voices')
-            filtered_voices = []
-            
-            # Priority languages
-            priority_langs = ['english', 'hindi', 'kannada']
-            
-            for voice in voices:
-                voice_name_lower = voice.name.lower()
-                for lang in priority_langs:
-                    if lang in voice_name_lower:
-                        filtered_voices.append({
-                            "code": lang[:2],
-                            "name": voice.name,
-                            "id": voice.id,
-                            "quality": "high"
-                        })
-                        break
-            
-            # If no specific voices found, return first 3 voices
-            if not filtered_voices:
-                filtered_voices = [
-                    {"code": "en", "name": voices[i].name if i < len(voices) else "Default", 
-                     "id": voices[i].id if i < len(voices) else 0, "quality": "standard"}
-                    for i in range(min(3, len(voices)))
-                ]
-            
-            return filtered_voices
+            # No TTS engine available, return default
+            return [
+                {"code": "en", "name": "English (US) - Premium", "engine": "none", "quality": "premium"},
+                {"code": "hi", "name": "हिंदी Hindi - Premium", "engine": "none", "quality": "premium"},
+                {"code": "kn", "name": "ಕನ್ನಡ Kannada - Premium", "engine": "none", "quality": "premium"},
+            ]
