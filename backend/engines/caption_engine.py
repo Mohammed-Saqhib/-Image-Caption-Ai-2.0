@@ -163,114 +163,241 @@ class CaptionEngine:
         }
     
     def _clean_description(self, text, prompt):
-        """Advanced cleaning of model output"""
-        # Remove the prompt
+        """Advanced cleaning of model output - removes ALL artifacts"""
+        if not text:
+            return ""
+        
+        # Remove the original prompt completely
         text = text.replace(prompt, "").strip()
         
-        # Remove common AI artifacts
+        # Remove ALL variations of Q&A artifacts (case-insensitive)
+        import re
+        
+        # Remove Question/Answer patterns with their text
+        text = re.sub(r'[Qq]uestion\s*:.*?[Aa]nswer\s*:', '', text, flags=re.DOTALL)
+        text = re.sub(r'[Qq]uestion\s*:.*?\?', '', text)
+        text = re.sub(r'[Aa]nswer\s*:', '', text)
+        text = re.sub(r'[Qq]uestion\s*:', '', text)
+        
+        # Remove common AI phrases
         artifacts = [
-            "Question:", "Answer:", "question:", "answer:",
             "describe this image", "this image shows", "in this image",
-            "the image shows", "i can see", "there is", "there are"
+            "the image shows", "i can see", "there is", "there are",
+            "what is happening", "what are they doing", "what can you see",
+            "what objects", "describe the", "notable objects include",
+            "the setting appears to be", "appears to be", "seems to be",
+            "it looks like", "it appears", "what is", "what are"
         ]
         
+        text_lower = text.lower()
         for artifact in artifacts:
-            text = text.replace(artifact, "").strip()
+            if artifact in text_lower:
+                # Case-insensitive replacement
+                pattern = re.compile(re.escape(artifact), re.IGNORECASE)
+                text = pattern.sub('', text)
         
-        # Remove leading articles if they start the sentence awkwardly
-        if text.startswith(("a ", "an ", "the ")):
-            text = text[text.index(" ")+1:].strip()
-            text = text[0].upper() + text[1:] if text else text
+        # Clean up multiple spaces and punctuation
+        text = re.sub(r'\s+', ' ', text)
+        text = re.sub(r'\s*\?\s*', '. ', text)
+        text = re.sub(r'\s*:\s*', '. ', text)
+        text = re.sub(r'\.+', '.', text)
+        text = text.strip()
+        
+        # Remove leading articles if sentence starts awkwardly
+        if text and text.startswith(("a ", "an ", "the ", "A ", "An ", "The ")):
+            # Only remove if followed by lowercase (not a proper noun)
+            parts = text.split(' ', 1)
+            if len(parts) > 1 and parts[1] and parts[1][0].islower():
+                text = parts[1]
         
         # Ensure proper sentence structure
-        if text and not text[0].isupper():
-            text = text[0].upper() + text[1:]
-        
-        if text and not text.endswith(('.', '!', '?')):
-            text = text + '.'
+        if text:
+            # Capitalize first letter
+            text = text[0].upper() + text[1:] if len(text) > 1 else text.upper()
+            
+            # Ensure proper ending
+            if not text.endswith(('.', '!', '?')):
+                text = text + '.'
+            
+            # Fix double periods
+            text = text.replace('..', '.')
         
         return text
     
     def _build_next_level_description(self, descriptions, base_caption):
-        """Build a NEXT-LEVEL detailed description from categorized analysis"""
+        """Build the BEST POSSIBLE detailed description from categorized analysis"""
         parts = []
         
-        # Opening with main subject
+        # Filter out empty or very short descriptions
+        descriptions = {k: v for k, v in descriptions.items() if v and len(v) > 8}
+        
+        if not descriptions:
+            return self._enhance_caption(base_caption)
+        
+        # Build opening statement (most natural description)
+        opening = None
         if "unconditional" in descriptions:
-            main = descriptions["unconditional"]
-            parts.append(f"This image captures {main}")
+            opening = descriptions["unconditional"]
+            parts.append(f"This photograph shows {opening.lower()}" if not opening.lower().startswith(('a ', 'an ', 'the ')) else f"This photograph shows {opening}")
         elif "subject" in descriptions:
-            parts.append(f"The main focus is {descriptions['subject']}")
+            subject = descriptions["subject"]
+            parts.append(f"The main focus of this image is {subject.lower()}")
         else:
-            parts.append(f"This image shows {base_caption}")
+            parts.append(f"This image depicts {base_caption}")
         
-        # Action/Activity
-        if "action" in descriptions and descriptions["action"].lower() not in parts[0].lower():
-            parts.append(f"{descriptions['action']}")
+        # Add action/activity if meaningful and not redundant
+        if "action" in descriptions:
+            action = descriptions["action"]
+            # Only add if it's not already mentioned in opening
+            if opening and action.lower() not in opening.lower():
+                if len(action) > 15:  # Meaningful content
+                    parts.append(action)
         
-        # People details
-        if "people" in descriptions and "no" not in descriptions["people"].lower():
+        # Add people details if present
+        if "people" in descriptions:
             people_desc = descriptions["people"]
-            if len(people_desc) > 15:  # Meaningful description
-                parts.append(f"{people_desc}")
+            # Only if it describes actual people
+            if "no" not in people_desc.lower() and "not" not in people_desc.lower():
+                if len(people_desc) > 20 and not any(people_desc.lower() in p.lower() for p in parts):
+                    parts.append(people_desc)
         
-        # Objects
+        # Add object details
         if "objects" in descriptions:
             obj_desc = descriptions["objects"]
-            # Only add if it's not redundant
-            if not any(obj_desc.lower() in part.lower() for part in parts):
-                parts.append(f"Notable objects include {obj_desc}")
+            if len(obj_desc) > 15:
+                # Check it's not redundant
+                if not any(obj_desc.lower() in p.lower() for p in parts):
+                    # Natural integration
+                    if any(word in obj_desc.lower() for word in ['various', 'several', 'multiple', 'include']):
+                        parts.append(obj_desc)
+                    else:
+                        parts.append(f"Visible objects include {obj_desc.lower()}")
         
-        # Setting and background
+        # Add setting/location
+        setting_added = False
         if "setting" in descriptions:
-            parts.append(f"The setting appears to be {descriptions['setting']}")
-        elif "background" in descriptions:
-            parts.append(f"In the background, {descriptions['background']}")
+            setting = descriptions["setting"]
+            if len(setting) > 15 and not any(setting.lower() in p.lower() for p in parts):
+                parts.append(f"The scene is set in {setting.lower()}")
+                setting_added = True
         
-        # Atmosphere
+        if not setting_added and "background" in descriptions:
+            bg = descriptions["background"]
+            if len(bg) > 15 and not any(bg.lower() in p.lower() for p in parts):
+                parts.append(f"The background features {bg.lower()}")
+        
+        # Add atmosphere/lighting
         if "atmosphere" in descriptions:
-            parts.append(f"{descriptions['atmosphere']}")
+            atm = descriptions["atmosphere"]
+            if len(atm) > 20 and not any(atm.lower() in p.lower() for p in parts):
+                parts.append(atm)
         
-        # Composition
+        # Add composition if meaningful
         if "composition" in descriptions:
             comp = descriptions["composition"]
-            if len(comp) > 20:  # Only add meaningful composition details
-                parts.append(f"{comp}")
+            if len(comp) > 25:  # Only substantial composition details
+                if not any(comp.lower() in p.lower() for p in parts):
+                    parts.append(comp)
         
-        # Mood (as closing)
+        # Add mood as closing touch
         if "mood" in descriptions:
-            parts.append(f"{descriptions['mood']}")
+            mood = descriptions["mood"]
+            if len(mood) > 15 and not any(mood.lower() in p.lower() for p in parts):
+                parts.append(f"The overall mood is {mood.lower()}")
         
-        # Combine with intelligent joining
-        description = " ".join(parts[:6])  # Limit to 6 best parts to avoid verbosity
+        # Limit to best 5-6 parts for readability
+        parts = parts[:6]
         
-        # Final cleanup
+        # Combine with natural flow
+        if len(parts) == 1:
+            description = parts[0]
+        elif len(parts) == 2:
+            description = f"{parts[0]} {parts[1]}"
+        else:
+            # Join first parts naturally, last part with "Additionally" or smooth connector
+            main_parts = ". ".join(parts[:-1])
+            last_part = parts[-1]
+            
+            # Smart connector
+            if len(parts) > 3:
+                description = f"{main_parts}. Additionally, {last_part.lower()}"
+            else:
+                description = f"{main_parts}. {last_part}"
+        
+        # Final polish
         description = self._final_polish(description)
         
         return description
     
     def _final_polish(self, text):
-        """Final polish to ensure natural flowing text"""
-        # Remove duplicate sentences
+        """Final polish to ensure PERFECT natural flowing text"""
+        import re
+        
+        # Remove duplicate sentences (even if slightly different)
         sentences = text.split('. ')
         unique_sentences = []
         seen = set()
         
         for sent in sentences:
-            sent_lower = sent.lower().strip()
-            if sent_lower and sent_lower not in seen and len(sent_lower) > 10:
-                unique_sentences.append(sent.strip())
-                seen.add(sent_lower)
+            sent = sent.strip()
+            if not sent or len(sent) < 10:
+                continue
+            
+            # Normalize for comparison
+            normalized = ' '.join(sent.lower().split())
+            
+            # Check for duplicates with fuzzy matching
+            is_duplicate = False
+            for seen_sent in seen:
+                # If 80% of words are the same, it's a duplicate
+                sent_words = set(normalized.split())
+                seen_words = set(seen_sent.split())
+                
+                if sent_words and seen_words:
+                    overlap = len(sent_words & seen_words)
+                    similarity = overlap / max(len(sent_words), len(seen_words))
+                    
+                    if similarity > 0.8:
+                        is_duplicate = True
+                        break
+            
+            if not is_duplicate:
+                unique_sentences.append(sent)
+                seen.add(normalized)
         
-        # Rejoin
+        # Rejoin sentences
         polished = '. '.join(unique_sentences)
         
+        # Clean up any remaining artifacts
+        polished = re.sub(r'\s+', ' ', polished)  # Multiple spaces
+        polished = re.sub(r'\.+', '.', polished)  # Multiple periods
+        polished = re.sub(r'\s*\.\s*', '. ', polished)  # Space around periods
+        polished = re.sub(r'\s+([.,!?])', r'\1', polished)  # Space before punctuation
+        
+        # Remove any remaining question marks from prompts
+        polished = polished.replace('?', '.')
+        polished = polished.replace('..', '.')
+        
         # Ensure proper ending
+        polished = polished.strip()
         if polished and not polished.endswith(('.', '!', '?')):
             polished += '.'
         
-        # Replace multiple spaces
-        polished = ' '.join(polished.split())
+        # Capitalize properly after periods
+        sentences = polished.split('. ')
+        capitalized = []
+        for sent in sentences:
+            sent = sent.strip()
+            if sent:
+                sent = sent[0].upper() + sent[1:] if len(sent) > 1 else sent.upper()
+                capitalized.append(sent)
+        
+        polished = '. '.join(capitalized)
+        
+        # Final cleanup - remove any orphaned lowercase starts
+        polished = polished.strip()
+        if polished and polished[0].islower():
+            polished = polished[0].upper() + polished[1:]
         
         return polished
     
