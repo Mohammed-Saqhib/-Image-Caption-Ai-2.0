@@ -283,15 +283,7 @@ async def get_ocr_languages():
     """Get supported OCR languages"""
     return {
         "languages": [
-            {"code": "en", "name": "English"},
-            {"code": "ar", "name": "Arabic"},
-            {"code": "zh", "name": "Chinese"},
-            {"code": "hi", "name": "Hindi"},
-            {"code": "es", "name": "Spanish"},
-            {"code": "fr", "name": "French"},
-            {"code": "de", "name": "German"},
-            {"code": "ja", "name": "Japanese"},
-            {"code": "ko", "name": "Korean"}
+            {"code": "en", "name": "English"}
         ]
     }
 
