@@ -64,6 +64,34 @@ export const sampleImages = [
     path: "/sample-images/sample_9_upi_loans.png",
     description: "Loan information with text",
     category: "text"
+  },
+  {
+    id: 10,
+    name: "Sample 1",
+    path: "/sample-images/sample_10_sample1.png",
+    description: "Additional sample image 1",
+    category: "text"
+  },
+  {
+    id: 11,
+    name: "Sample 2",
+    path: "/sample-images/sample_11_sample2.png",
+    description: "Additional sample image 2",
+    category: "text"
+  },
+  {
+    id: 12,
+    name: "Sample 3",
+    path: "/sample-images/sample_12_sample3.png",
+    description: "Additional sample image 3",
+    category: "text"
+  },
+  {
+    id: 13,
+    name: "Solar Chargers (Variant)",
+    path: "/sample-images/sample_13_solar_chargers_variant.png",
+    description: "Alternative solar charger information",
+    category: "text"
   }
 ];
 
